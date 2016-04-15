@@ -1,4 +1,4 @@
-from flask import Flask, abort,render_template, flash, redirect,jsonify,request
+from flask import Flask, abort,render_template, flash, redirect,jsonify,request,make_response
 from pymongo import MongoClient 
 from bson import json_util 
 import json
@@ -10,38 +10,44 @@ auth = HTTPBasicAuth()
 
 
 app = Flask(__name__) 
+#connecting to bd
 client = MongoClient("mongodb://localhost:27017") 
 db = client.nws 
 
+#add admin
+@app.route('/api/add_admin/', methods=['POST'])
+def add_admin(): 
+    if not request.json: 
+        abort(400) 
+    if (not 'login' in request.json): 
+        return jsonify({'error': 'login not found'}),400 
+    if (not 'password' in request.json): 
+        return jsonify({'error': 'password not found'}),400 
+    id = db.auth.count()+1 
+    admin={'_id':id,'login':request.json['login'],'password':request.json['password']} 
+    db.auth.insert(admin) 
+    return jsonify({'response': 'success'}), 201
+
+#get auth data for checking
 @auth.get_password
 def get_password(username):
-    if username == 'admin':
-        return 'psswd'
+    filter = {"login" : username}
+    data=db.auth.find(filter)
+    if(data):
+        return data[0]['password']
     return None
+
+#show error if u not authorized
 @auth.error_handler
 def unauthorized():
     return jsonify({'error': 'Unauthorized access'}), 403
 
-#admin= {
-#    "login":"admin",
-#    "password":"admin" 
-#    }
-#k_val= 0
-#@app.route('/api/auth/', methods=['POST']) 
-#def auth():
-#    if (request.json['login']==admin['login'] and request.json['password']==admin['password']):
-#        k_val = random.randint(1,50)
-#        return jsonify({'key': k_val}), 201
-#    else:
-#        return jsonify({'error': 'wrong login or password'}),400 
-    
+#add new data in db
 @app.route('/api/add_news/', methods=['POST'])
 @auth.login_required
 def add_news(): 
     if not request.json: 
         abort(400) 
-    if (request.json['key'] != k_val):
-         return jsonify({'error': 'not enough rights'}),400 
     if (not 'title' in request.json): 
         return jsonify({'error': 'title not found'}),400 
     if (not 'text' in request.json): 
@@ -55,6 +61,7 @@ def add_news():
     db.nws.insert(news) 
     return jsonify({'response': 'success'}), 201
 
+#delete data from db
 @app.route('/api/delete_news/<int:_id>', methods=['DELETE'])
 @auth.login_required
 def delete_news(_id): 
@@ -66,6 +73,7 @@ def delete_news(_id):
     db.nws.remove(data) 
     return jsonify({'response': 'success'}),201
 
+#get news by id
 @app.route('/api/get_news/<int:_id>', methods=['GET']) 
 def get_newsid(_id): 
     filter = {"_id":_id} 
@@ -73,21 +81,29 @@ def get_newsid(_id):
     if len(data)==0:
         abort(404)
     return jsonify({'news': data})
- 
 
+ #get news by category
+@app.route('/api/news_cat/<string:cat>', methods=['GET']) 
+def news_bycat(cat): 
+    filter = {"category":cat} 
+    data = json.loads(json_util.dumps(db.nws.find(filter)))
+    if len(data)==0:
+        abort(404)
+    return jsonify({'news': data})
+ 
+#get all news
 @app.route('/api/get_news/', methods=['GET']) 
 def get_news(): 
     data = json.loads(json_util.dumps(db.nws.find()))
     return jsonify({'news': data})
 
+#update data in db by id
 @app.route('/api/update_news/<int:_id>', methods=['PUT']) 
 @auth.login_required
 def update_news(_id): 
     filter = {"_id":_id} 
     if not request.json: 
         abort(400) 
-    #if (request.json['key'] != k_val):
-    #     return jsonify({'error': 'not enough rights'}),400 
     if (not 'title' in request.json): 
         return jsonify({'error': 'title not found'}),400 
     if (not 'text' in request.json): 
