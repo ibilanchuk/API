@@ -5,7 +5,7 @@ import json
 import datetime
 from datetime import datetime
 import random
-from flask_httpauth import HTTPBasicAuth
+from flask_httpauth import HTTPBasicAuth 
 auth = HTTPBasicAuth()
 
 
@@ -26,7 +26,8 @@ def add_admin():
     id = db.auth.count()+1 
     admin={'_id':id,'login':request.json['login'],'password':request.json['password']} 
     db.auth.insert(admin) 
-    return jsonify({'response': 'success'}), 201
+    return jsonify({'response': 'success'}), 201 #тут і далі, приводити словник у джинсу не обов'язково, можна відразу return {'response': 'success'}, 201
+    #крім того от якраз в конкретному випадку, коли треба повернути константний об'єкт, цілком нормально відразу руками прописати джинсу, типу '{"response": "success"}', і не робити лишні конверсії
 
 #get auth data for checking
 @auth.get_password
